@@ -1,0 +1,254 @@
+{
+  "info": {
+    "name": "Auction Service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "auctionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "startTime",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "endTime",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "startInMinutes",
+      "value": "2",
+      "type": "string"
+    },
+    {
+      "key": "durationInMinutes",
+      "value": "60",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auctions",
+      "item": [
+        {
+          "name": "List Auctions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/auctions?page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["auctions"],
+              "query": [
+                { "key": "page", "value": "0", "description": "Zero-based page index" },
+                { "key": "size", "value": "20", "description": "Number of items per page" },
+                { "key": "sort", "value": "startTime,desc", "description": "Sort field and direction", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Auction",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/auctions/{{auctionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["auctions", "{{auctionId}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Auction",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const startInMinutes = 2;",
+                  "const durationMinutes = 60;",
+                  "const startTime = new Date(Date.now() + startInMinutes * 60000).toISOString();",
+                  "const endTime   = new Date(Date.now() + (startInMinutes + durationMinutes) * 60000).toISOString();",
+                  "pm.collectionVariables.set('startTime', startTime);",
+                  "pm.collectionVariables.set('endTime',   endTime);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.id) { pm.collectionVariables.set('auctionId', res.id); }",
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Status is SCHEDULED', () => pm.expect(res.status).to.eql('SCHEDULED'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auctions",
+              "host": ["{{baseUrl}}"],
+              "path": ["auctions"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sellerId\": \"victor\",\n  \"title\": \"Macbook Air M4\",\n  \"description\": \"Macbook air with US Keyboard layout in mint condition.\",\n  \"startTime\": \"{{startTime}}\",\n  \"endTime\": \"{{endTime}}\",\n  \"startingPrice\": 500.00,\n  \"minBidIncrement\": 50.00\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bids",
+      "item": [
+        {
+          "name": "Place Bid",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 202 Accepted', () => pm.response.to.have.status(202));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has eventId', () => pm.expect(res.eventId).to.be.a('string'));",
+                  "pm.test('Has message', () => pm.expect(res.message).to.be.a('string'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auctions/{{auctionId}}/bids",
+              "host": ["{{baseUrl}}"],
+              "path": ["auctions", "{{auctionId}}", "bids"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"bob\",\n  \"amount\": 600.00\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Place Bid — below minimum (expect 422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 202 (queued) or 422 (not open)', () => {",
+                  "  pm.expect([202, 422]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auctions/{{auctionId}}/bids",
+              "host": ["{{baseUrl}}"],
+              "path": ["auctions", "{{auctionId}}", "bids"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"charlie\",\n  \"amount\": 50.00\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Bid History",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/auctions/{{auctionId}}/bids?page=0&size=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["auctions", "{{auctionId}}", "bids"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "50" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Comments",
+      "item": [
+        {
+          "name": "Add Comment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auctions/{{auctionId}}/comments",
+              "host": ["{{baseUrl}}"],
+              "path": ["auctions", "{{auctionId}}", "comments"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"charlie\",\n  \"content\": \"Is this still available for viewing?\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "List Comments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/auctions/{{auctionId}}/comments?page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["auctions", "{{auctionId}}", "comments"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
