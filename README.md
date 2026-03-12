@@ -81,6 +81,8 @@ The load test creates the auctions during setup, waits for them to open, then ha
 
 All list endpoints support `?page=0&size=20&sort=field,direction`.
 
+A Postman collection covering all endpoints is available at `postman/auction-service.postman_collection.json`. Import it into Postman and set the `baseUrl` collection variable to `http://localhost:8080`. The Create Auction request includes a pre-request script that generates valid future timestamps automatically, and saves the created auction ID so the bid and comment requests can reference it immediately.
+
 ## Real-Time Updates via WebSocket
 
 Connect to the WebSocket endpoint and subscribe to an auction topic to receive live bid and close events.
